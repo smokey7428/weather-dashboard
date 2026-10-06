@@ -106,6 +106,15 @@
   .seg-ctrl button{border:0;border-radius:0;background:transparent;padding:7px 12px;font-size:13px}
   .seg-ctrl button.on{background:var(--acc);color:#04101f;font-weight:700}
   .chart-box{height:300px}
+  .chart-box-sm{height:220px}
+  .hist-controls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .hist-field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--tx2);flex:1;min-width:150px}
+  .hist-field input[type=date]{background:var(--card);border:1px solid var(--line);color:var(--tx);
+    padding:9px 10px;border-radius:10px;font-size:15px;min-height:44px;font-family:inherit}
+  .hist-field input[type=date]:focus{border-color:var(--acc);outline:none}
+  .delta-up{color:#ff7a59}
+  .delta-down{color:#4da3ff}
+  .delta-eq{color:var(--tx2)}
   footer{margin:26px 0 40px;color:var(--tx2);font-size:12px;text-align:center;line-height:1.7}
   .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--tx2);border-top-color:transparent;
     border-radius:50%;animation:.7s linear infinite spin;vertical-align:-2px}
@@ -293,6 +302,39 @@
     <div id="outlook" class="metrics"></div>
   </section>
 
+  <section class="card" style="margin-top:16px" id="climateCard">
+    <h2>Climate: is today warmer or colder than normal?</h2>
+    <div id="climateBody" class="muted">Loading…</div>
+    <div style="margin-top:14px">
+      <h2 style="margin-bottom:8px">Temperature trend by year</h2>
+      <div class="chart-box chart-box-sm"><canvas id="climateChart"></canvas></div>
+      <div class="legend" style="margin-top:8px">
+        <span style="color:#ff7a59">━ Annual mean</span>
+        <span style="color:#4da3ff">━ 1991–2020 average</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <h2>Historical weather — pick a date</h2>
+    <div class="hist-controls">
+      <label class="hist-field">From
+        <input type="date" id="histFrom" />
+      </label>
+      <label class="hist-field">To (optional)
+        <input type="date" id="histTo" />
+      </label>
+      <button class="primary" id="histBtn">Show history</button>
+    </div>
+    <div class="status" id="histStatus" style="margin-top:8px"></div>
+    <div id="histBody" class="muted" style="margin-top:10px">Choose a date (or range) to see past weather at this location. Archive starts in 1940; the most recent few days may not be available yet.</div>
+    <div class="chart-box chart-box-sm hidden" id="histChartBox" style="margin-top:12px"><canvas id="histChart"></canvas></div>
+    <details class="hidden" id="histAllWrap">
+      <summary>All variables for the selected period</summary>
+      <div id="histAll" class="kv"></div>
+    </details>
+  </section>
+
   <section class="grid cols-2" style="margin-top:16px">
     <div class="card">
       <h2>Air quality</h2>
@@ -325,6 +367,7 @@
 
   <footer>
     Weather &amp; air quality: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC-BY 4.0) ·
+    Historical/climate: <a href="https://open-meteo.com/en/docs/historical-weather-api" target="_blank" rel="noopener">Open-Meteo ERA5 archive</a> ·
     Observed radar: <a href="https://www.rainviewer.com/api.html" target="_blank" rel="noopener">RainViewer</a> ·
     Basemap: <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> (World Dark Gray Canvas) ·
     Geocoding: Open-Meteo &amp; BigDataCloud.
@@ -404,11 +447,16 @@ const LABELS = {
   mugwort_pollen:"Mugwort pollen", olive_pollen:"Olive pollen", ragweed_pollen:"Ragweed pollen"
 };
 const lbl = k => LABELS[k] || k.replace(/_/g," ");
+LABELS.temperature_2m_mean = "Mean temperature";
+LABELS.apparent_temperature_mean = "Mean feels like";
+LABELS.relative_humidity_2m_mean = "Mean humidity";
+LABELS.surface_pressure_mean = "Mean surface pressure";
 
 /* ---------- state ---------- */
 const state = {
   lat:null, lon:null, name:"—", region:"",
   units:"metric", data:null, air:null, chart:null,
+  climateChart:null, histChart:null,
   map:null, homeMarker:null,
   radar:{ host:"", frames:[], idx:0, nowIndex:0, playing:false, timer:null, layer:null },
   fc:{ canvas:null, grid:null, times:[], active:false, loading:false },
@@ -487,6 +535,34 @@ async function fetchAir(){
   }catch(e){ return null; }
 }
 
+/* ---------- historical / climate (ERA5 archive, 1940→now) ---------- */
+const NORMAL_YEARS = [1991, 2020];
+async function fetchHistory(start,end,extraDaily){
+  const daily = ["temperature_2m_mean","temperature_2m_max","temperature_2m_min",
+    "apparent_temperature_mean","precipitation_sum","rain_sum","snowfall_sum",
+    "wind_speed_10m_max","wind_gusts_10m_max","shortwave_radiation_sum",
+    "sunshine_duration","daylight_duration","weather_code","relative_humidity_2m_mean",
+    "surface_pressure_mean"].concat(extraDaily||[]).join(",");
+  return getJSON("https://archive-api.open-meteo.com/v1/archive"
+    + "?latitude="+state.lat+"&longitude="+state.lon
+    + "&start_date="+start+"&end_date="+end
+    + "&timezone=auto&daily="+daily+unitQuery());
+}
+async function fetchClimatology(){
+  // full series since 1940: annual means + the 1991–2020 daily normal
+  const [full, normal] = await Promise.all([
+    getJSON("https://archive-api.open-meteo.com/v1/archive"
+      + "?latitude="+state.lat+"&longitude="+state.lon
+      + "&start_date=1940-01-01&end_date="+(new Date().getFullYear()-1)+"-12-31"
+      + "&timezone=auto&daily=temperature_2m_mean"+unitQuery()),
+    getJSON("https://archive-api.open-meteo.com/v1/archive"
+      + "?latitude="+state.lat+"&longitude="+state.lon
+      + "&start_date="+NORMAL_YEARS[0]+"-01-01&end_date="+NORMAL_YEARS[1]+"-12-31"
+      + "&timezone=auto&daily=temperature_2m_mean"+unitQuery())
+  ]);
+  return { full, normal };
+}
+
 /* ---------- geocoding ---------- */
 async function geocode(name){
   const j = await getJSON("https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name="
@@ -544,6 +620,10 @@ async function load(lat,lon,name,region){
   loadRadar(lat,lon);
   state.fc.grid=null; state.fc.times=[];
   if(state.mode==="forecast") loadForecastGrid().then(renderForecastFrame);
+  // reset + (re)load climate / history for the new location
+  state.climate=null;
+  resetHistoryUI();
+  loadClimate();
 }
 function setStatus(m,e){ const s=$("status"); s.textContent=m; s.className="status"+(e?" err":""); }
 function refresh(){ if(state.lat!=null) load(state.lat,state.lon,state.name,state.region); }
@@ -789,6 +869,221 @@ function renderAllCurrent(){
     else if(k==="wind_direction_10m") out=v!=null?compass(v)+" ("+Math.round(v)+"°)":"—";
     else out=fmt(v,2)+" "+(u[k]||"");
     return "<div><span>"+esc(lbl(k))+"</span><span>"+out+"</span></div>";
+  }).join("");
+}
+
+/* ==================================================================
+ *  CLIMATE — is today warmer/colder than the 1991–2020 normal?
+ *  + annual warming trend since 1940 (ERA5 archive)
+ * ================================================================== */
+function mean(a){ let s=0,n=0; for(const v of a){ if(v!=null){s+=v;n++;} } return n?s/n:null; }
+function yearMeans(daily){
+  const byYear={};
+  const t=daily.time, v=daily.temperature_2m_mean;
+  for(let i=0;i<t.length;i++){
+    if(v[i]==null) continue;
+    const y=+t[i].slice(0,4);
+    (byYear[y]||(byYear[y]=[])).push(v[i]);
+  }
+  const out={};
+  for(const y in byYear) out[y]=mean(byYear[y]);
+  return out;
+}
+async function loadClimate(){
+  const body=$("climateBody");
+  body.className="muted"; body.innerHTML='<span class="spin"></span> Loading historical data…';
+  try{
+    const {full,normal}=await fetchClimatology();
+    state.climate={full,normal,stats:computeClimate(full,normal)};
+    renderClimate(state.climate.stats);
+  }catch(e){
+    console.error(e);
+    body.className="muted";
+    body.innerHTML='<span class="err">Historical data unavailable for this location.</span>';
+  }
+}
+function computeClimate(full,normal){
+  const uT=(full.daily_units&&full.daily_units.temperature_2m_mean)||(isMetric()?"°C":"°F");
+  const yd=state.data&&state.data.daily;
+  const tu=(state.data&&state.data.daily_units&&state.data.daily_units.temperature_2m_max)||uT;
+  const tHigh=yd?yd.temperature_2m_max[0]:null, tLow=yd?yd.temperature_2m_min[0]:null;
+  const tMean = (tHigh!=null&&tLow!=null)?(tHigh+tLow)/2:null;
+
+  const now=new Date();
+  const mmdd=String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+
+  const normalMeans=[];
+  for(let i=0;i<normal.daily.time.length;i++){
+    if(normal.daily.time[i].slice(5,10)===mmdd) normalMeans.push(normal.daily.temperature_2m_mean[i]);
+  }
+  const todayNormal=mean(normalMeans);
+
+  const perYear=[];
+  for(let i=0;i<full.daily.time.length;i++){
+    if(full.daily.time[i].slice(5,10)===mmdd){
+      perYear.push({year:+full.daily.time[i].slice(0,4), v:full.daily.temperature_2m_mean[i]});
+    }
+  }
+  const warmest=perYear.filter(x=>x.v!=null).sort((a,b)=>b.v-a.v)[0]||null;
+  const coldest=perYear.filter(x=>x.v!=null).sort((a,b)=>a.v-b.v)[0]||null;
+
+  const ymeans=yearMeans(full.daily);
+  const years=Object.keys(ymeans).map(Number).sort((a,b)=>a-b);
+  const trend = years.length>10 ? (ymeans[years[years.length-1]]-ymeans[years[0]]) : null;
+
+  return { uT, tu, tHigh, tLow, tMean, todayNormal, warmest, coldest, ymeans, years, trend, mmdd,
+           normalLabel:NORMAL_YEARS[0]+"–"+NORMAL_YEARS[1] };
+}
+function deltaClass(d){ return d==null?"":(Math.abs(d)<0.05?"delta-eq":(d>0?"delta-up":"delta-down")); }
+function renderClimate(s){
+  const body=$("climateBody"); body.className="";
+  if(s.tMean==null||s.todayNormal==null){
+    body.innerHTML='<span class="muted">Not enough overlapping data to compare today to normal.</span>';
+  }else{
+    const d=s.tMean-s.todayNormal;
+    const verdict = Math.abs(d)<0.5 ? "close to normal"
+                  : d>0 ? "warmer than normal" : "colder than normal";
+    const arrow = d>0?"▲":d<0?"▼":"■";
+    body.innerHTML=`
+      <div class="metrics">
+        <div class="metric"><div class="k">Today (mean of high/low)</div><div class="v">${fmt(s.tMean,1)} <small>${s.tu}</small></div></div>
+        <div class="metric"><div class="k">Normal for this date</div><div class="v">${fmt(s.todayNormal,1)} <small>${s.uT}</small></div>
+          <div class="muted" style="font-size:11px">${s.normalLabel} average</div></div>
+        <div class="metric"><div class="k">Difference</div><div class="v ${deltaClass(d)}">${arrow} ${d>0?"+":""}${fmt(d,1)} <small>${s.uT}</small></div>
+          <div class="muted" style="font-size:11px">${verdict}</div></div>
+        <div class="metric"><div class="k">Warming trend since 1940</div><div class="v ${deltaClass(s.trend)}">${s.trend>0?"+":""}${fmt(s.trend,1)} <small>${s.uT}</small></div>
+          <div class="muted" style="font-size:11px">last year vs first year</div></div>
+      </div>
+      <div class="muted" style="margin-top:10px">
+        Today high ${fmt(s.tHigh,1)} / low ${fmt(s.tLow,1)} ${s.tu} ·
+        Warmest ${s.warmest?esc(s.warmest.year):"—"} (${s.warmest?fmt(s.warmest.v,1):"—"}) ·
+        Coldest ${s.coldest?esc(s.coldest.year):"—"} (${s.coldest?fmt(s.coldest.v,1):"—"}) for ${s.mmdd}.
+      </div>`;
+  }
+  renderClimateChart(s);
+}
+function renderClimateChart(s){
+  if(state.climateChart) state.climateChart.destroy();
+  const labels=s.years, data=labels.map(y=>s.ymeans[y]);
+  const baseline=mean(data);
+  state.climateChart=new Chart($("climateChart").getContext("2d"),{
+    type:"line",
+    data:{labels,datasets:[
+      {label:"Annual mean",data,borderColor:"#ff7a59",backgroundColor:"rgba(255,122,89,.12)",
+        tension:.25,pointRadius:0,borderWidth:2,fill:true},
+      {label:"Baseline",data:labels.map(()=>baseline),borderColor:"#4da3ff",borderDash:[6,4],pointRadius:0,borderWidth:1.5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,animation:false,
+      interaction:{mode:"index",intersect:false},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.dataset.label+": "+fmt(c.parsed.y,1)+" "+s.uT}}},
+      scales:{x:{ticks:{color:"#9fb0cc",maxTicksLimit:10},grid:{color:"rgba(38,52,79,.6)"}},
+        y:{ticks:{color:"#9fb0cc"},grid:{color:"rgba(38,52,79,.6)"},
+          title:{display:true,text:s.uT,color:"#9fb0cc"}}}}
+  });
+}
+
+/* ==================================================================
+ *  HISTORICAL WEATHER DATE PICKER
+ * ================================================================== */
+function resetHistoryUI(){
+  $("histStatus").textContent="";
+  $("histBody").className="muted";
+  $("histBody").innerHTML="Choose a date (or range) to see past weather at this location. Archive starts in 1940; the most recent few days may not be available yet.";
+  $("histChartBox").classList.add("hidden");
+  $("histAllWrap").classList.add("hidden");
+  const today=new Date();
+  const iso=d=>d.toISOString().slice(0,10);
+  if(!$("histFrom").value) $("histFrom").value=iso(new Date(Date.UTC(today.getFullYear()-1, today.getMonth(), today.getDate())));
+  $("histTo").max=iso(today);
+  $("histFrom").min="1940-01-01";
+  if(state.histChart){ state.histChart.destroy(); state.histChart=null; }
+}
+async function loadHistory(){
+  const from=$("histFrom").value, to=$("histTo").value||from;
+  if(!from){ $("histStatus").textContent="Pick a start date."; return; }
+  if(from>to){ $("histStatus").textContent="The start date is after the end date."; return; }
+  $("histStatus").textContent="Loading historical data…";
+  $("histBody").innerHTML='<span class="spin"></span> Loading…';
+  try{
+    const j=await fetchHistory(from,to);
+    if(!j.daily||!j.daily.time.length){ throw new Error("no data returned"); }
+    renderHistory(j,from,to);
+    $("histStatus").textContent="Historical data from "+from+(to!==from?(" to "+to):"")+".";
+  }catch(e){
+    console.error(e);
+    $("histStatus").textContent="Could not load history: "+e.message;
+    $("histBody").innerHTML='<span class="muted">No historical data for that period (ERA5 archive may lag a few days).</span>';
+  }
+}
+function renderHistory(j,from,to){
+  const d=j.daily,u=j.daily_units||{};
+  const uT=u.temperature_2m_mean||(isMetric()?"°C":"°F");
+  const n=d.time.length;
+  const isRange = n>1;
+  const avg=k=>mean(d[k].filter(v=>v!=null));
+
+  if(isRange){
+    $("histBody").className="";
+    const rows=[
+      ["Days",n+" days"],
+      ["Mean temperature",fmt(avg("temperature_2m_mean"),1)+" "+uT],
+      ["Mean daily high",fmt(avg("temperature_2m_max"),1)+" "+uT],
+      ["Mean daily low",fmt(avg("temperature_2m_min"),1)+" "+uT],
+      ["Mean feels like",fmt(avg("apparent_temperature_mean"),1)+" "+uT],
+      ["Total precipitation",fmt(d.precipitation_sum.reduce((a,b)=>a+(b||0),0),1)+" "+(u.precipitation_sum||"mm")],
+      ["Total snowfall",fmt(d.snowfall_sum.reduce((a,b)=>a+(b||0),0),1)+" "+(u.snowfall_sum||"cm")],
+      ["Mean humidity",fmt(avg("relative_humidity_2m_mean"),0)+" %"],
+      ["Max wind gust",fmt(Math.max(...d.wind_gusts_10m_max.filter(v=>v!=null)),1)+" "+(u.wind_gusts_10m_max||"km/h")]
+    ];
+    $("histBody").innerHTML='<div class="kv">'+rows.map(([k,v])=>
+      "<div><span>"+esc(k)+"</span><span>"+v+"</span></div>").join("")+'</div>';
+    $("histChartBox").classList.remove("hidden");
+    if(state.histChart) state.histChart.destroy();
+    state.histChart=new Chart($("histChart").getContext("2d"),{
+      type:"line",
+      data:{labels:d.time.map(t=>t.slice(5)),datasets:[
+        {label:"Max",data:d.temperature_2m_max,borderColor:"#ff7a59",pointRadius:0,borderWidth:1.5,tension:.2},
+        {label:"Mean",data:d.temperature_2m_mean,borderColor:"#ffb454",pointRadius:0,borderWidth:2,tension:.2},
+        {label:"Min",data:d.temperature_2m_min,borderColor:"#4da3ff",pointRadius:0,borderWidth:1.5,tension:.2}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,animation:false,
+        plugins:{legend:{labels:{color:"#9fb0cc",boxWidth:12}}},
+        scales:{x:{ticks:{color:"#9fb0cc",maxTicksLimit:10},grid:{color:"rgba(38,52,79,.6)"}},
+          y:{ticks:{color:"#9fb0cc"},grid:{color:"rgba(38,52,79,.6)"},title:{display:true,text:uT,color:"#9fb0cc"}}}}
+    });
+  }else{
+    $("histBody").className="";
+    const i=0;
+    const [desc,icon]=wx(d.weather_code[i]);
+    $("histBody").innerHTML=`
+      <div class="now" style="gap:18px">
+        <div class="icon">${icon}</div>
+        <div>
+          <div class="cond">${desc}<small>${from}</small></div>
+          <div class="metrics" style="margin-top:12px">
+            <div class="metric"><div class="k">High</div><div class="v">${fmt(d.temperature_2m_max[i],1)} <small>${uT}</small></div></div>
+            <div class="metric"><div class="k">Low</div><div class="v">${fmt(d.temperature_2m_min[i],1)} <small>${uT}</small></div></div>
+            <div class="metric"><div class="k">Mean</div><div class="v">${fmt(d.temperature_2m_mean[i],1)} <small>${uT}</small></div></div>
+            <div class="metric"><div class="k">Precipitation</div><div class="v">${fmt(d.precipitation_sum[i],1)} <small>${u.precipitation_sum||"mm"}</small></div></div>
+            <div class="metric"><div class="k">Max gust</div><div class="v">${fmt(d.wind_gusts_10m_max[i],1)} <small>${u.wind_gusts_10m_max||"km/h"}</small></div></div>
+            <div class="metric"><div class="k">Sunshine</div><div class="v">${d.sunshine_duration[i]!=null?dur(d.sunshine_duration[i]):"—"}</div></div>
+          </div>
+        </div>
+      </div>`;
+    $("histChartBox").classList.add("hidden");
+  }
+
+  const keys=Object.keys(d).filter(k=>k!=="time");
+  $("histAllWrap").classList.remove("hidden");
+  $("histAll").innerHTML=keys.map(k=>{
+    const isTime = k==="daylight_duration"||k==="sunshine_duration";
+    const vals=d[k].filter(v=>v!=null);
+    if(!vals.length) return "";
+    let out;
+    if(k==="weather_code") out=wx(d[k][0])[1]+" "+wx(d[k][0])[0];
+    else if(isTime) out=dur(mean(vals));
+    else out=fmt(mean(vals),1)+" "+(u[k]||"");
+    return "<div><span>"+esc(lbl(k))+(vals.length>1?" (mean)":"")+"</span><span>"+out+"</span></div>";
   }).join("");
 }
 
@@ -1044,6 +1339,8 @@ $("frame").addEventListener("input",e=>{
   if(state.mode==="radar"){ state.radar.idx=+e.target.value; updateRadarFrame(); }
   else renderForecastFrame();
 });
+$("histBtn").addEventListener("click",loadHistory);
+$("histFrom").addEventListener("change",()=>{ if($("histFrom").value) loadHistory(); });
 
 setInterval(refresh,10*60*1000);
 

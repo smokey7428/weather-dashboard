@@ -4,7 +4,7 @@
  * - stale-while-revalidate for CDN libraries
  * - network-first with cached fallback for map tiles
  */
-const VERSION = "v2";
+const VERSION = "v3";
 const SHELL = "wx-shell-" + VERSION;
 const DATA = "wx-data-" + VERSION;
 const TILES = "wx-tiles-" + VERSION;
