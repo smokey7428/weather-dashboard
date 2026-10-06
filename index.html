@@ -887,12 +887,12 @@ async function loadForecastGrid(){
   fc.loading=true;
   try{
     setStatus("Loading forecast precipitation grid…");
-    const cx=state.lat, cy=state.lon;
+    const lat=state.lat, lon=state.lon;
     const lats=[],lons=[];
     for(let y=0;y<FC.ny;y++){
       for(let x=0;x<FC.nx;x++){
-        lats.push((cy+(y-(FC.ny-1)/2)*FC.step).toFixed(4));
-        lons.push((cx+(x-(FC.nx-1)/2)*FC.step).toFixed(4));
+        lats.push((lat+((FC.ny-1)/2-y)*FC.step).toFixed(4));
+        lons.push((lon+(x-(FC.nx-1)/2)*FC.step).toFixed(4));
       }
     }
     const body=new URLSearchParams();
@@ -929,7 +929,7 @@ function renderForecastFrame(){
   clearMapLayers();
   const idx=+$("frame").value;
   const t=fc.start+idx;
-  const cx=state.lat, cy=state.lon, nx=fc.nx, ny=fc.ny;
+  const lat=state.lat, lon=state.lon, nx=fc.nx, ny=fc.ny;
 
   const canvas=L.DomUtil.create("canvas","fc-canvas");
   const D=8; canvas.width=nx*D; canvas.height=ny*D;
@@ -966,7 +966,7 @@ function renderForecastFrame(){
   ctx.putImageData(img,0,0);
 
   const halfX=(nx-1)/2*fc.step, halfY=(ny-1)/2*fc.step;
-  const bounds=[[cy-halfY, cx-halfX],[cy+halfY, cx+halfX]];
+  const bounds=[[lat-halfY, lon-halfX],[lat+halfY, lon+halfX]];
   fc.canvas=L.imageOverlay(canvas.toDataURL(), bounds, {opacity:.62, interactive:false, zIndex:10}).addTo(state.map);
 
   const iso=fc.times[Math.min(t,fc.times.length-1)];
