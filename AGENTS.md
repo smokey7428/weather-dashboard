@@ -98,6 +98,14 @@ invariants — do not regress them:
 - Mobile-first; **0 px horizontal overflow at 412×915** is a checked invariant.
 
 ### Things that bit us
+- **`android-actions/setup-android@v3` fails on the current runner image** — it
+  tries to install the long-removed `tools` package and dies with
+  `Failed to find package 'tools'`, before any later step's skip logic can run.
+  The runner already ships the SDK, so the workflow selects it and calls
+  `sdkmanager` directly.
+- **The Gradle `syncWebAssets` task writes into `android/app/src/main/assets/`.**
+  That directory is git-ignored on purpose: the web app at the repository root is
+  the single source of truth, and committing the copy would let the two drift.
 - **`--` is illegal inside XML comments.** A comment mentioning the CSS variable
   `--bg` fails `mergeReleaseResources`.
 - **`set -o pipefail` + `tr < /dev/urandom | head`** makes the generator script

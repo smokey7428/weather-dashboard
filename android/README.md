@@ -155,6 +155,12 @@ git tag v1.0.0 && git push --tags
   `proguard-rules.pro` are in place for if that changes.
 - **`--` is not allowed inside XML comments.** A comment referring to the CSS
   variable `--bg` will fail `mergeReleaseResources`.
+- **`android-actions/setup-android@v3` is broken on current runner images** — it
+  tries to install the long-removed `tools` package and fails before any later
+  step runs. CI selects the preinstalled SDK and calls `sdkmanager` directly.
+- **`app/src/main/assets/` is generated and git-ignored.** The web app at the
+  repository root is the single source of truth; the Gradle `syncWebAssets` task
+  copies it in on every build.
 - **`set -o pipefail` plus `tr < /dev/urandom | head`** kills the generator script
   with SIGPIPE. `make-keystore.sh` uses `openssl rand` instead.
 - The adaptive launcher icon's foreground is padded to ~66% because launchers
