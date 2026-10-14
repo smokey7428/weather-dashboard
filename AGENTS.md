@@ -176,12 +176,27 @@ registering.
 
 **Website:**
 ```bash
-cd "/Users/you/Documents/Opencode/S3D weather dashboard"
+cd "$(git rev-parse --show-toplevel)"   # the repository root
 git add -A && git commit -m "<message>" && git push
 ```
 Pages rebuilds in ~1 min. Verify: watch the `pages` status until `built`, then
 grep the live `index.html` for the new code. Bump `sw.js` `VERSION` first if you
 changed cached assets.
+
+**Never commit under a real name, and never commit a home directory path.**
+This repo is public, and with Pages source `master:/` *every* file in it is served
+publicly — including `AGENTS.md` and `README.md`. There is no git identity
+configured on this machine, so without an explicit override git falls back to the
+macOS account name and hostname, which leaks the author's real name into public
+commit metadata. Commit with:
+
+```bash
+git -c user.name="Weather Dashboard" -c user.email="weather@example.com" commit -m "..."
+```
+
+or set it for the repository once with `git config user.name` / `user.email`.
+Write paths as `$(git rev-parse --show-toplevel)` or `~/...`, never as an
+absolute `/Users/<name>/...`.
 
 **Android:** see `android/README.md`. Short version:
 ```bash

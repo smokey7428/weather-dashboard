@@ -117,7 +117,7 @@ curl -O https://download.geonames.org/export/dump/admin1CodesASCII.txt
 curl -O https://download.geonames.org/export/dump/countryInfo.txt
 unzip cities15000.zip
 
-cd "/Users/you/Documents/Opencode/S3D weather dashboard"
+cd "$(git rev-parse --show-toplevel)"   # the repository root
 node tools/build-cities.js /tmp/geonames
 node tests/cities.test.js
 ```
