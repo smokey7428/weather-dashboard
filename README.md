@@ -1,5 +1,25 @@
 # Weather Dashboard
 
+> ## ⚠️ Vibe coded — install and use at your own risk
+>
+> **This project was vibe coded.** It was written by an AI coding agent working
+> from plain-English prompts, steered and reviewed by one person. It has had
+> **no professional security audit, no penetration test, and no review by anyone
+> other than its author.** Automated tests exist (see [Tests](#tests)), but tests
+> only check what their author thought to check.
+>
+> Everything in the [Privacy](#privacy) section is a genuine description of how
+> the app is built. But *trying* to make something safe is **not proof** that it
+> is safe, and **nobody independent has verified any of these claims** — including
+> the author's own. There is **no warranty of any kind**.
+>
+> **Android APKs in particular come from a self-signed key and are not vetted by
+> any app store.** Installing an APK from outside a store always carries risk.
+> Check the signing fingerprint before you install anything, and if you would
+> rather not take that risk, don't — use a service with a company behind it.
+>
+> Use it, fork it, learn from it. Just don't trust it with anything that matters.
+
 A weather dashboard for one location: current conditions, hourly and 8-day
 forecasts, air quality and pollen, observed rain radar, a forecast-precipitation
 map, climate comparison against the 1991–2020 normal, and a historical-weather

@@ -170,10 +170,27 @@ jobs:
           body: |
             Weather Dashboard for Android.
 
-            Install it by opening the APK on your phone and allowing
-            installation from this source when Android asks. That prompt is
-            normal for any app that does not come from an app store.
+            ## ⚠️ Vibe coded — install and use at your own risk
 
-            Verify what you downloaded: compare the signing certificate
-            SHA-256 fingerprint in the build summary with the one published by
-            whoever sent you this.
+            This app was written by an AI coding agent from plain-English prompts.
+            It has had **no security audit, no penetration test and no independent
+            review**, and comes from a **self-signed key that no app store vets**.
+            It requests only three permissions and a lot of care went into its
+            privacy design, but *trying* to be safe is not *proof* of being safe.
+            There is **no warranty of any kind**.
+
+            Only install an APK from outside a store if you accept that risk.
+
+            ### Verifying the download
+
+            Installing it is a one-time "allow from this source" prompt — normal
+            for any app that does not come from a store.
+
+            Compare the signing certificate below with the one published by
+            whoever sent you the app:
+
+            ```
+            $ apksigner verify --print-certs weather-dashboard.apk
+            ```
+
+            If the SHA-256 fingerprint does not match, do not install it.

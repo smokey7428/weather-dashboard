@@ -281,6 +281,18 @@ function check(name, ok, detail) {
   check("privacy disclosure rendered", /leaves this device/i.test(privacyText) &&
     /On device/i.test(privacyText), privacyText.slice(0, 120));
 
+  /* --- the at-your-own-risk notice must stay visible --- */
+  const disclaimerText = (await page.textContent("#disclaimer").catch(() => "")) || "";
+  const disclaimerVisible = await page.evaluate(() => {
+    const el = document.getElementById("disclaimer");
+    if (!el) return false;
+    const s = getComputedStyle(el);
+    return el.offsetHeight > 0 && s.display !== "none" && s.visibility !== "hidden";
+  });
+  check("vibe-coded / at-your-own-risk notice is visible",
+    disclaimerVisible && /vibe coded/i.test(disclaimerText) && /own risk/i.test(disclaimerText),
+    disclaimerText.replace(/\s+/g, " ").slice(0, 140));
+
   /* --- vendor libraries served locally --- */
   const libRequests = requested.filter((r) => /leaflet|chart/.test(r.url));
   check("map and chart libraries come from this origin (no external requests)",

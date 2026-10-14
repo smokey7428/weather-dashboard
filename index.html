@@ -76,6 +76,12 @@
   @media(max-width:900px){.cols-2{grid-template-columns:1fr}}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
   .card h2{margin:0 0 12px;font-size:15px;letter-spacing:.04em;text-transform:uppercase;color:var(--tx2);font-weight:600}
+  .notice{background:linear-gradient(180deg,rgba(255,180,84,.10),rgba(255,180,84,.03));
+    border:1px solid rgba(255,180,84,.38);border-radius:var(--radius);padding:13px 15px;margin-top:12px}
+  .notice h2{margin:0 0 8px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--warn);font-weight:700}
+  .notice p{margin:0 0 8px;font-size:13px;line-height:1.55}
+  .notice p:last-child{margin-bottom:0}
   .now{display:flex;flex-wrap:wrap;gap:24px;align-items:center}
   .now .temp{font-size:64px;font-weight:200;line-height:1}
   .now .temp small{font-size:26px;color:var(--tx2)}
@@ -257,6 +263,18 @@
     </div>
   </header>
 
+  <section class="notice" id="disclaimer">
+    <h2>⚠ Vibe coded — install and use at your own risk</h2>
+    <p>This app was <b>vibe coded</b>: written by an AI coding agent from plain-English
+    prompts, steered and reviewed by one person. It has had <b>no professional security
+    audit, no penetration test, and no review by anyone other than its author</b>.</p>
+    <p>We have genuinely tried to make it private and safe, and the
+    <a href="#privacy">details further down</a> describe exactly how. But
+    <i>trying</i> to be safe is not <i>proof</i> of being safe. There is no warranty
+    of any kind. If you need weather you can rely on, use a service with a company
+    behind it.</p>
+  </section>
+
   <div id="offlineBadge" class="offline-badge hidden">⚠ Offline — showing last saved data</div>
 
   <div id="results" class="card hidden" style="margin-top:12px"></div>
@@ -407,6 +425,8 @@
   </section>
 
   <footer>
+    <p style="margin:0 0 10px;color:var(--warn)">Vibe coded · provided as-is · no warranty ·
+      not security-audited.<br />Use at your own risk — see the notice at the top of this page.</p>
     Weather &amp; air quality: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC-BY 4.0) ·
     Historical/climate: <a href="https://open-meteo.com/en/docs/historical-weather-api" target="_blank" rel="noopener">Open-Meteo ERA5 archive</a> ·
     Observed radar: <a href="https://www.rainviewer.com/api.html" target="_blank" rel="noopener">RainViewer</a> ·

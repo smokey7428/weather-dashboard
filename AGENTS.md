@@ -40,6 +40,13 @@ invariants — do not regress them:
 
 `privacy.html` is the user-facing statement; keep it in step with the code.
 
+**The "vibe coded — at your own risk" notice is deliberate and required.** It
+appears at the top of `index.html` (so it is in the Android app too, since the app
+renders that page), in the footer, at the top of the privacy statement, and at the
+top of `README.md`. The page test asserts it is still visible, because a
+disclaimer that can be quietly deleted is worse than none. Do not remove it as
+clutter, and do not soften it.
+
 ## Files
 - `index.html` — the entire web app (HTML + CSS + JS inline, ~1500 lines).
 - `privacy.html` — standalone privacy statement.

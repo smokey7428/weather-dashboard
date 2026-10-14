@@ -6,7 +6,7 @@
  * Every asset is served from this origin: the app has no CDN dependencies, so
  * the shell cache is the complete set of code that can run.
  */
-const VERSION = "v4";
+const VERSION = "v5";
 const SHELL = "wx-shell-" + VERSION;
 const DATA = "wx-data-" + VERSION;
 const TILES = "wx-tiles-" + VERSION;
