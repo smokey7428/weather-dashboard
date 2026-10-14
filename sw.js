@@ -1,10 +1,12 @@
 /* Weather Dashboard service worker
  * - app shell precache (works offline)
  * - network-first for live weather/air APIs, with cached fallback
- * - stale-while-revalidate for CDN libraries
  * - network-first with cached fallback for map tiles
+ *
+ * Every asset is served from this origin: the app has no CDN dependencies, so
+ * the shell cache is the complete set of code that can run.
  */
-const VERSION = "v3";
+const VERSION = "v4";
 const SHELL = "wx-shell-" + VERSION;
 const DATA = "wx-data-" + VERSION;
 const TILES = "wx-tiles-" + VERSION;
@@ -13,13 +15,23 @@ const MAX_TILES = 300;
 const SHELL_ASSETS = [
   "./",
   "./index.html",
+  "./privacy.html",
   "./manifest.json",
   "./icon-192.png",
   "./icon-512.png",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
-  "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
-  "https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"
+  "./vendor/leaflet/leaflet.css",
+  "./vendor/leaflet/leaflet.js",
+  "./vendor/leaflet/images/layers.png",
+  "./vendor/leaflet/images/layers-2x.png",
+  "./vendor/leaflet/images/marker-icon.png",
+  "./vendor/leaflet/images/marker-icon-2x.png",
+  "./vendor/leaflet/images/marker-shadow.png",
+  "./vendor/chartjs/chart.umd.js"
 ];
+
+/* vendor/cities/cities.js (~1.2 MB) is deliberately NOT precached: it is only
+ * needed when a coordinate has to be turned into a place name, and the
+ * same-origin runtime cache below picks it up on first use. */
 
 self.addEventListener("install", (event) => {
   event.waitUntil((async () => {
@@ -27,7 +39,7 @@ self.addEventListener("install", (event) => {
     await Promise.all(SHELL_ASSETS.map(async (url) => {
       try {
         const res = await fetch(url, { cache: "reload" });
-        if (res && (res.ok || res.type === "opaque")) await cache.put(url, res.clone());
+        if (res && res.ok) await cache.put(url, res.clone());
       } catch (e) { /* ignore individual failures */ }
     }));
     self.skipWaiting();
@@ -43,14 +55,14 @@ self.addEventListener("activate", (event) => {
   })());
 });
 
+/* The complete set of upstream hosts this app is allowed to reach, matching the
+ * connect-src directive in index.html and ALLOWED_HOSTS in MainActivity.kt.
+ * tests/consistency.test.js fails the build if they drift apart. */
 function isDataRequest(url) {
-  return /(^|\.)open-meteo\.com$|(^|\.)air-quality-api\.open-meteo\.com$|(^|\.)geocoding-api\.open-meteo\.com$|(^|\.)rainviewer\.com$|(^|\.)bigdatacloud\.net$/.test(url.hostname);
+  return /(^|\.)open-meteo\.com$|^api\.rainviewer\.com$/.test(url.hostname);
 }
 function isTileRequest(url) {
-  return /(^|\.)arcgisonline\.com$|(^|\.)tilecache\.rainviewer\.com$/.test(url.hostname);
-}
-function isCdn(url) {
-  return /(^|\.)unpkg\.com$|(^|\.)jsdelivr\.net$/.test(url.hostname);
+  return /(^|\.)arcgisonline\.com$|^tilecache\.rainviewer\.com$/.test(url.hostname);
 }
 
 async function trimCache(cacheName, max) {
@@ -65,7 +77,7 @@ async function networkFirst(request, cacheName) {
   const cache = await caches.open(cacheName);
   try {
     const fresh = await fetch(request);
-    if (fresh && (fresh.ok || fresh.type === "opaque")) {
+    if (fresh && fresh.ok) {
       cache.put(request, fresh.clone()).catch(() => {});
     }
     return fresh;
@@ -80,7 +92,7 @@ async function staleWhileRevalidate(request, cacheName) {
   const cache = await caches.open(cacheName);
   const cached = await cache.match(request);
   const network = fetch(request).then((res) => {
-    if (res && (res.ok || res.type === "opaque")) cache.put(request, res.clone()).catch(() => {});
+    if (res && res.ok) cache.put(request, res.clone()).catch(() => {});
     return res;
   }).catch(() => null);
   return cached || (await network) || Response.error();
@@ -119,10 +131,6 @@ self.addEventListener("fetch", (event) => {
   }
   if (isDataRequest(url)) {
     event.respondWith(networkFirst(req, DATA));
-    return;
-  }
-  if (isCdn(url)) {
-    event.respondWith(staleWhileRevalidate(req, SHELL));
     return;
   }
 

@@ -11,10 +11,32 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="apple-mobile-web-app-title" content="Weather" />
 <title>Weather Dashboard</title>
+
+<!-- Privacy: no Referer is sent to weather, tile, or radar servers. -->
+<meta name="referrer" content="no-referrer" />
+
+<!-- Content-Security-Policy.
+     Everything the app needs is bundled locally, so script/style are same-origin
+     only. connect-src and img-src are the complete list of servers this app may
+     ever talk to; anything else is blocked by the browser, not just by
+     convention. Leaflet and Chart.js are served from vendor/, never a CDN. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'none';
+  script-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline';
+  img-src 'self' data: blob: https://server.arcgisonline.com https://tilecache.rainviewer.com;
+  connect-src 'self' https://api.open-meteo.com https://air-quality-api.open-meteo.com https://geocoding-api.open-meteo.com https://archive-api.open-meteo.com https://api.rainviewer.com;
+  font-src 'self';
+  manifest-src 'self';
+  worker-src 'self';
+  object-src 'none';
+  base-uri 'none';
+  form-action 'none'" />
+
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" href="icon-192.png" />
 <link rel="apple-touch-icon" href="icon-192.png" />
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css" />
 <style>
   :root{
     --bg:#0b1220; --bg2:#111a2e; --card:#151f36; --card2:#1b2843;
@@ -61,7 +83,7 @@
   .now .cond small{display:block;font-size:13px;color:var(--tx2);font-weight:400;margin-top:4px}
   .now .icon{font-size:76px;line-height:1}
   .metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-  .metric{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .metric{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-width:0}
   .metric .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--tx2);
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .metric .v{font-size:19px;font-weight:600;margin-top:3px;word-break:break-word}
@@ -365,17 +387,38 @@
     <div id="curAll" class="kv"></div>
   </section>
 
+  <section class="card" style="margin-top:16px" id="privacy">
+    <h2>What leaves this device</h2>
+    <p class="status" style="margin:0">
+      No accounts, no analytics, no advertising, no cookies, no tracking, and no third-party
+      scripts. Coordinates are rounded to about 1&nbsp;km before any weather request, and no
+      Referer header is sent. Place names are resolved on-device from a bundled GeoNames list.
+      The list below is the complete set of servers this app can reach — the
+      Content-Security-Policy in this page blocks every other destination.
+    </p>
+    <div class="kv" style="margin-top:10px">
+      <div><span>Place name lookup</span><span class="muted">On device — nothing sent</span></div>
+      <div><span>Forecast &amp; air quality</span><span class="muted">Open-Meteo · coordinates (~1 km)</span></div>
+      <div><span>Historical &amp; climate</span><span class="muted">Open-Meteo ERA5 · coordinates (~1 km)</span></div>
+      <div><span>City search</span><span class="muted">Open-Meteo · only the text you type</span></div>
+      <div><span>Rain radar</span><span class="muted">RainViewer · your IP and the viewed map area</span></div>
+      <div><span>Basemap</span><span class="muted">Esri · your IP and the viewed map area</span></div>
+    </div>
+  </section>
+
   <footer>
     Weather &amp; air quality: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC-BY 4.0) ·
     Historical/climate: <a href="https://open-meteo.com/en/docs/historical-weather-api" target="_blank" rel="noopener">Open-Meteo ERA5 archive</a> ·
     Observed radar: <a href="https://www.rainviewer.com/api.html" target="_blank" rel="noopener">RainViewer</a> ·
     Basemap: <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> (World Dark Gray Canvas) ·
-    Geocoding: Open-Meteo &amp; BigDataCloud.
+    Place names: <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a> (CC-BY 4.0, bundled offline) ·
+    <a href="privacy.html">Privacy</a> ·
+    <a href="#privacy">What leaves this device</a>
   </footer>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="vendor/chartjs/chart.umd.js"></script>
 <script>
 "use strict";
 
@@ -518,7 +561,7 @@ const AIR_VARS = ["european_aqi","us_aqi","pm10","pm2_5","carbon_monoxide","nitr
 
 async function fetchForecast(){
   return getJSON("https://api.open-meteo.com/v1/forecast"
-    + "?latitude="+state.lat+"&longitude="+state.lon
+    + "?latitude="+apiLat()+"&longitude="+apiLon()
     + "&timezone=auto&forecast_days=8"
     + "&current="+CURRENT_VARS.join(",")
     + "&hourly="+HOURLY_VARS.join(",")
@@ -528,7 +571,7 @@ async function fetchForecast(){
 async function fetchAir(){
   try{
     return await getJSON("https://air-quality-api.open-meteo.com/v1/air-quality"
-      + "?latitude="+state.lat+"&longitude="+state.lon
+      + "?latitude="+apiLat()+"&longitude="+apiLon()
       + "&timezone=auto&forecast_days=3&past_days=1"
       + "&current="+AIR_VARS.join(",")
       + "&hourly=pm10,pm2_5,european_aqi,us_aqi,ozone,nitrogen_dioxide,uv_index");
@@ -544,7 +587,7 @@ async function fetchHistory(start,end,extraDaily){
     "sunshine_duration","daylight_duration","weather_code","relative_humidity_2m_mean",
     "surface_pressure_mean"].concat(extraDaily||[]).join(",");
   return getJSON("https://archive-api.open-meteo.com/v1/archive"
-    + "?latitude="+state.lat+"&longitude="+state.lon
+    + "?latitude="+apiLat()+"&longitude="+apiLon()
     + "&start_date="+start+"&end_date="+end
     + "&timezone=auto&daily="+daily+unitQuery());
 }
@@ -552,11 +595,11 @@ async function fetchClimatology(){
   // full series since 1940: annual means + the 1991–2020 daily normal
   const [full, normal] = await Promise.all([
     getJSON("https://archive-api.open-meteo.com/v1/archive"
-      + "?latitude="+state.lat+"&longitude="+state.lon
+      + "?latitude="+apiLat()+"&longitude="+apiLon()
       + "&start_date=1940-01-01&end_date="+(new Date().getFullYear()-1)+"-12-31"
       + "&timezone=auto&daily=temperature_2m_mean"+unitQuery()),
     getJSON("https://archive-api.open-meteo.com/v1/archive"
-      + "?latitude="+state.lat+"&longitude="+state.lon
+      + "?latitude="+apiLat()+"&longitude="+apiLon()
       + "&start_date="+NORMAL_YEARS[0]+"-01-01&end_date="+NORMAL_YEARS[1]+"-12-31"
       + "&timezone=auto&daily=temperature_2m_mean"+unitQuery())
   ]);
@@ -564,18 +607,71 @@ async function fetchClimatology(){
 }
 
 /* ---------- geocoding ---------- */
+/* Every outbound coordinate is rounded to 2 decimals (~1.1 km) first, so no
+ * request carries a precise home location. Weather is unaffected at this scale. */
+function r2(v){ return Math.round(v*100)/100; }
+function apiLat(){ return r2(state.lat); }
+function apiLon(){ return r2(state.lon); }
+
 async function geocode(name){
   const j = await getJSON("https://geocoding-api.open-meteo.com/v1/search?count=8&language=en&format=json&name="
     + encodeURIComponent(name));
   return j.results || [];
 }
-async function reverseGeocode(lat,lon){
+
+/* "Where am I" is answered on-device from a bundled GeoNames city list
+ * (vendor/cities/cities.js, ~1.2 MB, loaded only when first needed). No
+ * reverse-geocoding service is contacted, so the coordinates never leave the
+ * device for this step. */
+let citiesPromise=null;
+function loadCities(){
+  if(citiesPromise) return citiesPromise;
+  citiesPromise=new Promise((resolve,reject)=>{
+    if(window.WX_CITIES){ resolve(window.WX_CITIES); return; }
+    const s=document.createElement("script");
+    s.src="vendor/cities/cities.js";
+    s.onload=()=>window.WX_CITIES?resolve(window.WX_CITIES):reject(new Error("city list empty"));
+    s.onerror=()=>reject(new Error("city list unavailable"));
+    document.head.appendChild(s);
+  });
+  return citiesPromise;
+}
+async function nearestPlace(lat,lon){
   try{
-    const j = await getJSON("https://api.bigdatacloud.net/data/reverse-geocode-client?latitude="
-      + lat + "&longitude=" + lon + "&localityLanguage=en");
-    return [j.city||j.locality, j.principalSubdivision, j.countryName].filter(Boolean).join(", ");
+    const C=await loadCities();
+    return C.nearest(lat,lon);
   }catch(e){ return null; }
 }
+
+/* ---------- device location ----------
+ * In the Android app a native bridge (window.AndroidGeo) supplies the position
+ * directly. That is more reliable than a WebView's own geolocation plumbing,
+ * which depends on a prompt callback that does not always fire. In a browser
+ * the standard API is used, with the same accuracy settings as before. */
+function locate(){
+  return new Promise((resolve,reject)=>{
+    const bridge=window.AndroidGeo;
+    if(bridge&&typeof bridge.requestLocation==="function"){
+      const timer=setTimeout(()=>{ window.__wxGeo=null; reject(new Error("timed out")); },25000);
+      window.__wxGeo={resolve,reject,timer};
+      bridge.requestLocation();
+      return;
+    }
+    if(!navigator.geolocation){ reject(new Error("Geolocation not supported.")); return; }
+    navigator.geolocation.getCurrentPosition(resolve,reject,
+      {enableHighAccuracy:false,timeout:10000,maximumAge:600000});
+  });
+}
+window.__onLocation=function(lat,lon){
+  const p=window.__wxGeo; if(!p) return;
+  window.__wxGeo=null; clearTimeout(p.timer);
+  p.resolve({coords:{latitude:lat,longitude:lon}});
+};
+window.__onLocationError=function(msg){
+  const p=window.__wxGeo; if(!p) return;
+  window.__wxGeo=null; clearTimeout(p.timer);
+  p.reject(new Error(msg||"Location unavailable"));
+};
 function showResults(list){
   const box=$("results");
   box.classList.remove("hidden");
@@ -1182,12 +1278,12 @@ async function loadForecastGrid(){
   fc.loading=true;
   try{
     setStatus("Loading forecast precipitation grid…");
-    const lat=state.lat, lon=state.lon;
+    const lat=apiLat(), lon=apiLon();
     const lats=[],lons=[];
     for(let y=0;y<FC.ny;y++){
       for(let x=0;x<FC.nx;x++){
-        lats.push((lat+((FC.ny-1)/2-y)*FC.step).toFixed(4));
-        lons.push((lon+(x-(FC.nx-1)/2)*FC.step).toFixed(4));
+        lats.push((lat+((FC.ny-1)/2-y)*FC.step).toFixed(2));
+        lons.push((lon+(x-(FC.nx-1)/2)*FC.step).toFixed(2));
       }
     }
     const body=new URLSearchParams();
@@ -1313,15 +1409,13 @@ $("searchForm").addEventListener("submit",async e=>{
   }catch(err){ setStatus("Search failed: "+err.message,true); }
 });
 $("geoBtn").addEventListener("click",()=>{
-  if(!navigator.geolocation){ setStatus("Geolocation not supported.",true); return; }
   setStatus("Locating…");
-  navigator.geolocation.getCurrentPosition(async pos=>{
+  locate().then(async pos=>{
     const {latitude,longitude}=pos.coords;
     $("q").value=latitude.toFixed(4)+", "+longitude.toFixed(4);
-    const name=await reverseGeocode(latitude,longitude);
-    load(latitude,longitude,name||"My location",name?"":undefined);
-  },err=>setStatus("Location error: "+err.message,true),
-  {enableHighAccuracy:false,timeout:10000,maximumAge:600000});
+    const p=await nearestPlace(latitude,longitude);
+    load(latitude,longitude,p?p.name:"My location",p?[p.region,p.country].filter(Boolean).join(", "):undefined);
+  }).catch(err=>setStatus("Location error: "+err.message,true));
 });
 $("unitSeg").addEventListener("click",e=>{
   const b=e.target.closest("button[data-u]"); if(!b) return;
@@ -1407,16 +1501,11 @@ if("serviceWorker" in navigator){
     load(saved.lat,saved.lon,saved.name,saved.region);
     return;
   }
-  if(navigator.geolocation){
-    navigator.geolocation.getCurrentPosition(async pos=>{
-      const {latitude,longitude}=pos.coords;
-      const name=await reverseGeocode(latitude,longitude);
-      load(latitude,longitude,name||"My location",name?"":undefined);
-    },()=>load(52.3676,4.9041,"Amsterdam","North Holland, Netherlands"),
-    {timeout:8000,maximumAge:600000});
-  }else{
-    load(52.3676,4.9041,"Amsterdam","North Holland, Netherlands");
-  }
+  locate().then(async pos=>{
+    const {latitude,longitude}=pos.coords;
+    const p=await nearestPlace(latitude,longitude);
+    load(latitude,longitude,p?p.name:"My location",p?[p.region,p.country].filter(Boolean).join(", "):undefined);
+  }).catch(()=>load(52.3676,4.9041,"Amsterdam","North Holland, Netherlands"));
 })();
 </script>
 </body>

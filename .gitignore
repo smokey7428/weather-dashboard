@@ -1,0 +1,16 @@
+node_modules/
+android/.gradle/
+android/build/
+android/app/build/
+# Generated on every build by the syncWebAssets Gradle task — the web app at the
+# repository root is the single source of truth.
+android/app/src/main/assets/
+android/tools/bootstrap.log
+android/tools/build.log
+android/local.properties
+android/keystore/
+android/keystore.properties
+tests/fixtures/
+*.apk
+*.aab
+.DS_Store

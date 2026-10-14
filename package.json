@@ -1,0 +1,17 @@
+{
+  "name": "weather-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Single-page weather dashboard PWA, and the Android shell that wraps it.",
+  "scripts": {
+    "cities": "node tools/build-cities.js",
+    "test": "node tests/consistency.test.js && node tests/cities.test.js && node tests/page.test.js",
+    "test:consistency": "node tests/consistency.test.js",
+    "test:cities": "node tests/cities.test.js",
+    "test:page": "node tests/page.test.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0",
+    "playwright-core": "^1.49.0"
+  }
+}

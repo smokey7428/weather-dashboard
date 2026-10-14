@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0b1220" />
+<meta name="color-scheme" content="dark" />
+<meta name="referrer" content="no-referrer" />
+<title>Privacy — Weather Dashboard</title>
+<style>
+  :root{--bg:#0b1220;--card:#151f36;--line:#26344f;--tx:#e8eefc;--tx2:#9fb0cc;--acc:#4da3ff}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--tx);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  a{color:var(--acc)}
+  .wrap{max-width:760px;margin:0 auto;padding:24px 16px 64px}
+  h1{font-size:24px;margin:0 0 4px}
+  h2{font-size:14px;letter-spacing:.04em;text-transform:uppercase;color:var(--tx2);
+    margin:28px 0 10px;font-weight:600}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+  .lead{color:var(--tx2);margin:0}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px dashed var(--line);vertical-align:top}
+  th{color:var(--tx2);font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+  tr:last-child td{border-bottom:0}
+  code{background:#0e1729;border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-size:12px}
+  ul{padding-left:20px;margin:8px 0}
+  li{margin:5px 0}
+  .ok{color:#38d39f;font-weight:600}
+  .no{color:#ffb454;font-weight:600}
+  footer{margin-top:34px;color:var(--tx2);font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Privacy</h1>
+  <p class="lead">Weather Dashboard — website and Android app. Last updated 14 October 2026.</p>
+
+  <div class="card">
+    <p style="margin:0"><strong>The short version.</strong> There are no accounts, no analytics,
+    no advertising, no cookies, no tracking, and no third-party scripts. Your location is
+    rounded to about 1&nbsp;km before it is sent to any weather service, and the name of the
+    place you are in is worked out on your own device. There is nothing to sign up for and
+    nothing to opt out of.</p>
+  </div>
+
+  <h2>What is never collected</h2>
+  <div class="card">
+    <ul>
+      <li><span class="ok">No</span> accounts, email addresses, names or logins</li>
+      <li><span class="ok">No</span> analytics, telemetry or crash reporting</li>
+      <li><span class="ok">No</span> advertising or advertising identifiers</li>
+      <li><span class="ok">No</span> cookies, fingerprinting or cross-site trackers</li>
+      <li><span class="ok">No</span> access to contacts, photos, storage, camera, microphone or phone state</li>
+      <li><span class="ok">No</span> background location, and no location history</li>
+    </ul>
+  </div>
+
+  <h2>What leaves your device, and to whom</h2>
+  <div class="card">
+    <table>
+      <tr><th>Recipient</th><th>What it receives</th><th>Why</th></tr>
+      <tr>
+        <td><strong>Open-Meteo</strong><br><code>api.open-meteo.com</code></td>
+        <td>Your coordinates rounded to 2 decimals — roughly a 1&nbsp;km square. Never your exact position.</td>
+        <td>Current conditions, hourly and 8-day forecasts</td>
+      </tr>
+      <tr>
+        <td><strong>Open-Meteo</strong><br><code>air-quality-api…</code></td>
+        <td>Coordinates rounded as above</td>
+        <td>Air quality and pollen</td>
+      </tr>
+      <tr>
+        <td><strong>Open-Meteo</strong><br><code>archive-api…</code></td>
+        <td>Coordinates rounded as above</td>
+        <td>Historical weather back to 1940, and the 1991–2020 climate normal</td>
+      </tr>
+      <tr>
+        <td><strong>Open-Meteo</strong><br><code>geocoding-api…</code></td>
+        <td>Only the text you type into the search box. Nothing is sent unless you search.</td>
+        <td>Turning a city name into coordinates</td>
+      </tr>
+      <tr>
+        <td><strong>RainViewer</strong><br><code>api.rainviewer.com</code><br><code>tilecache.rainviewer.com</code></td>
+        <td>Your IP address, and the radar tiles you view — which reveal the map area on screen.</td>
+        <td>Observed rain radar for the past ~2 hours</td>
+      </tr>
+      <tr>
+        <td><strong>Esri</strong><br><code>server.arcgisonline.com</code></td>
+        <td>Your IP address, and the tiles you view — which reveal the map area on screen.</td>
+        <td>The dark map behind the radar</td>
+      </tr>
+    </table>
+  </div>
+
+  <h2>Place names are resolved on your device</h2>
+  <div class="card">
+    <p style="margin:0">Working out that you are "in Amsterdam" is done locally using a bundled
+    copy of the <a href="https://www.geonames.org/" target="_blank" rel="noopener">GeoNames</a>
+    city list (CC&nbsp;BY&nbsp;4.0). The coordinates needed for that lookup never leave your
+    device, and this works with no network connection at all.</p>
+  </div>
+
+  <h2>How this is enforced, not just promised</h2>
+  <div class="card">
+    <ul>
+      <li>The page carries a <strong>Content-Security-Policy</strong> that names every server it
+        may contact. The browser blocks anything else.</li>
+      <li><strong>Leaflet and Chart.js are bundled</strong> with the app rather than loaded from
+        a CDN, so no code is fetched from a third party at runtime and there is no
+        supply-chain exposure through a script host.</li>
+      <li>No <code>Referer</code> header is sent to weather, radar or tile servers.</li>
+      <li>In the Android app the same server list is <strong>also enforced natively</strong>,
+        independently of the page, so even a tampered app bundle could not send data
+        anywhere else.</li>
+      <li>The Android app asks for exactly three permissions — internet access,
+        and coarse and fine location. A fourth, app-scoped permission is
+        contributed automatically by the Android support library to protect its
+        own internal broadcast receivers; it grants nothing to any other app.</li>
+      <li>All traffic is HTTPS; cleartext HTTP is refused by the app.</li>
+      <li>Android backups and device-to-device transfer are disabled, so the one thing the app
+        stores — your last viewed location — stays on the device.</li>
+    </ul>
+  </div>
+
+  <h2>Permissions you can decline</h2>
+  <div class="card">
+    <p style="margin:0">Location is a convenience, not a requirement. If you deny it, or turn
+    location off entirely, the app stays fully usable: search for a city by name instead.
+    The app never asks for background location.</p>
+  </div>
+
+  <h2>Data retention</h2>
+  <div class="card">
+    <p style="margin:0">The only thing stored is the last location you looked at, kept in your
+    own browser or app storage so the dashboard opens where you left it. Nothing is sent
+    anywhere. Clearing the app's data, or the site's storage, removes it.</p>
+  </div>
+
+  <h2>Third-party data sources</h2>
+  <div class="card">
+    <p style="margin:0">Weather and air-quality data: Open-Meteo (CC&nbsp;BY&nbsp;4.0).
+    Radar imagery: RainViewer. Basemap tiles: Esri. Place names: GeoNames
+    (CC&nbsp;BY&nbsp;4.0). Map rendering: Leaflet (BSD-2-Clause). Charts: Chart.js (MIT).
+    Each of these has its own privacy policy once your request reaches it.</p>
+  </div>
+
+  <footer>
+    <a href="./">Back to the dashboard</a>
+  </footer>
+</div>
+</body>
+</html>
