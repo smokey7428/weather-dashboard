@@ -18,6 +18,10 @@
 > Check the signing fingerprint before you install anything, and if you would
 > rather not take that risk, don't — use a service with a company behind it.
 >
+> Note that this warning is shown here and on the website only. Once the app is
+> installed it does not display it again, so there is nothing in the Android app
+> itself to tell you any of the above.
+>
 > Use it, fork it, learn from it. Just don't trust it with anything that matters.
 
 A weather dashboard for one location: current conditions, hourly and 8-day

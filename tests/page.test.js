@@ -145,7 +145,9 @@ function check(name, ok, detail) {
   const consoleErrors = [];
   let gridPostBody = null;
 
-  await context.route("**/*", async (route) => {
+  /* Shared by every context below. Replays recorded API responses and stubs
+   * tiles, so no context ever reaches the live service. */
+  async function replayUpstream(route) {
     const req = route.request();
     const url = new URL(req.url());
 
@@ -183,7 +185,9 @@ function check(name, ok, detail) {
     } catch (e) {
       return route.abort();
     }
-  });
+  }
+
+  await context.route("**/*", replayUpstream);
 
   const page = await context.newPage();
   page.on("console", (m) => {
@@ -281,17 +285,63 @@ function check(name, ok, detail) {
   check("privacy disclosure rendered", /leaves this device/i.test(privacyText) &&
     /On device/i.test(privacyText), privacyText.slice(0, 120));
 
-  /* --- the at-your-own-risk notice must stay visible --- */
+  /* --- the at-your-own-risk notice ---
+   * It must be visible when the page is opened in a browser, and hidden once the
+   * app is installed. The website and the installed app are the same file, so
+   * the notice is suppressed at runtime rather than by shipping two variants. */
   const disclaimerText = (await page.textContent("#disclaimer").catch(() => "")) || "";
-  const disclaimerVisible = await page.evaluate(() => {
+  const noticeShown = (pg) => pg.evaluate(() => {
     const el = document.getElementById("disclaimer");
     if (!el) return false;
     const s = getComputedStyle(el);
     return el.offsetHeight > 0 && s.display !== "none" && s.visibility !== "hidden";
   });
-  check("vibe-coded / at-your-own-risk notice is visible",
-    disclaimerVisible && /vibe coded/i.test(disclaimerText) && /own risk/i.test(disclaimerText),
+
+  check("vibe-coded / at-your-own-risk notice is visible in a browser",
+    (await noticeShown(page)) &&
+    /vibe coded/i.test(disclaimerText) && /own risk/i.test(disclaimerText),
     disclaimerText.replace(/\s+/g, " ").slice(0, 140));
+
+  const footerWarnShown = await page.evaluate(() => {
+    const el = document.querySelector(".footer-warning");
+    return !!el && getComputedStyle(el).display !== "none";
+  });
+  check("footer warning is visible in a browser", footerWarnShown);
+
+  /* Installed contexts where the notice must NOT appear. */
+  async function noticeHiddenWhen(label, initScript) {
+    const ctx = await browser.newContext({ serviceWorkers: "block", ...initScript.opts });
+    await ctx.route("**/*", replayUpstream);
+    await ctx.addInitScript(initScript.fn);
+    const p = await ctx.newPage();
+    await p.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: "load" });
+    const shown = await noticeShown(p);
+    const footerShown = await p.evaluate(() => {
+      const el = document.querySelector(".footer-warning");
+      return !!el && getComputedStyle(el).display !== "none";
+    });
+    await ctx.close();
+    check(label, !shown && !footerShown);
+  }
+
+  // The Android APK: MainActivity injects this object before the page runs.
+  await noticeHiddenWhen("notice and footer warning hidden in the Android app", {
+    opts: { geolocation: { latitude: 52.3676, longitude: 4.9041 }, permissions: ["geolocation"] },
+    fn: () => { window.AndroidGeo = { requestLocation() {} }; },
+  });
+
+  // A PWA installed from the browser reports standalone display mode.
+  await noticeHiddenWhen("notice and footer warning hidden in an installed PWA", {
+    opts: { geolocation: { latitude: 52.3676, longitude: 4.9041 }, permissions: ["geolocation"] },
+    fn: () => {
+      const original = window.matchMedia.bind(window);
+      window.matchMedia = (q) =>
+        String(q).includes("display-mode: standalone")
+          ? { matches: true, media: q, addEventListener() {}, removeEventListener() {},
+              addListener() {}, removeListener() {}, onchange: null, dispatchEvent: () => false }
+          : original(q);
+    },
+  });
 
   /* --- vendor libraries served locally --- */
   const libRequests = requested.filter((r) => /leaflet|chart/.test(r.url));
@@ -327,19 +377,7 @@ function check(name, ok, detail) {
     geolocation: { latitude: 52.3676, longitude: 4.9041 },
     permissions: ["geolocation"],
   });
-  await swContext.route("**/*", async (route) => {
-    const url = new URL(route.request().url());
-    if (url.hostname === "127.0.0.1" || url.hostname === "localhost") return route.continue();
-    if (/arcgisonline|tilecache\.rainviewer/.test(url.hostname)) {
-      return route.fulfill({ status: 200, contentType: "image/png", body: PNG_1PX });
-    }
-    if (!ALLOWED_HOSTS.has(url.hostname)) return route.abort();
-    const file = fixtureKey(route.request().method(), route.request().url(), route.request().postData());
-    if (fs.existsSync(file)) {
-      return route.fulfill({ status: 200, contentType: "application/json", body: fs.readFileSync(file) });
-    }
-    return route.fulfill({ status: 200, contentType: "application/json", body: "{}" });
-  });
+  await swContext.route("**/*", replayUpstream);
   const swPage = await swContext.newPage();
   await swPage.goto(`http://127.0.0.1:${port}/index.html`, { waitUntil: "load" });
   const swReady = await swPage.evaluate(async () => {

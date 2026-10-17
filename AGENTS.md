@@ -41,11 +41,18 @@ invariants — do not regress them:
 `privacy.html` is the user-facing statement; keep it in step with the code.
 
 **The "vibe coded — at your own risk" notice is deliberate and required.** It
-appears at the top of `index.html` (so it is in the Android app too, since the app
-renders that page), in the footer, at the top of the privacy statement, and at the
-top of `README.md`. The page test asserts it is still visible, because a
-disclaimer that can be quietly deleted is worse than none. Do not remove it as
-clutter, and do not soften it.
+appears in a browser: at the top of `index.html`, in its footer, at the top of
+`privacy.html`, and at the top of `README.md`. It is **hidden once the app is
+installed** — the Android shell and a browser-installed PWA both get an
+`installed-app` class on `<html>`, applied by a head script before first paint so
+there is no flash. The website and the installed app are the same `index.html`,
+so this is done at runtime rather than by building two variants.
+
+The page test asserts both halves: visible in a browser, hidden with
+`window.AndroidGeo` present and hidden in standalone display mode. A disclaimer
+that can be quietly deleted is worse than none, so do not remove it as clutter,
+do not soften it, and do not widen the hiding — a distributed APK currently
+carries no warning at all, which is a deliberate trade the owner accepted.
 
 ## Files
 - `index.html` — the entire web app (HTML + CSS + JS inline, ~1500 lines).

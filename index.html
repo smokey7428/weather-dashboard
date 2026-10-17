@@ -33,6 +33,24 @@
   base-uri 'none';
   form-action 'none'" />
 
+<script>
+/* The "vibe coded" notice is aimed at people discovering this on the web.
+ * The website and the installed app are the same file, so the notice is
+ * suppressed here at runtime rather than by shipping two variants. Running it
+ * in the head, before first paint, avoids a flash of the notice on launch.
+ * window.AndroidGeo is injected by the Android WebView and is present
+ * immediately; display-mode covers a PWA installed from the browser. */
+(function(){
+  try{
+    var installed = window.matchMedia("(display-mode: standalone)").matches ||
+                    window.navigator.standalone === true ||
+                    !!window.AndroidGeo;
+    window.__wxInstalled = installed;
+    if(installed) document.documentElement.className += " installed-app";
+  }catch(e){}
+})();
+</script>
+
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" type="image/png" href="icon-192.png" />
 <link rel="apple-touch-icon" href="icon-192.png" />
@@ -82,6 +100,9 @@
     color:var(--warn);font-weight:700}
   .notice p{margin:0 0 8px;font-size:13px;line-height:1.55}
   .notice p:last-child{margin-bottom:0}
+  /* Only shown when the page is opened in a browser, not from an installed app. */
+  .installed-app #disclaimer,
+  .installed-app .footer-warning{display:none !important}
   .now{display:flex;flex-wrap:wrap;gap:24px;align-items:center}
   .now .temp{font-size:64px;font-weight:200;line-height:1}
   .now .temp small{font-size:26px;color:var(--tx2)}
@@ -425,7 +446,7 @@
   </section>
 
   <footer>
-    <p style="margin:0 0 10px;color:var(--warn)">Vibe coded · provided as-is · no warranty ·
+    <p class="footer-warning" style="margin:0 0 10px;color:var(--warn)">Vibe coded · provided as-is · no warranty ·
       not security-audited.<br />Use at your own risk — see the notice at the top of this page.</p>
     Weather &amp; air quality: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a> (CC-BY 4.0) ·
     Historical/climate: <a href="https://open-meteo.com/en/docs/historical-weather-api" target="_blank" rel="noopener">Open-Meteo ERA5 archive</a> ·
@@ -1472,7 +1493,9 @@ window.addEventListener("beforeinstallprompt",e=>{
 });
 window.addEventListener("appinstalled",()=>{ $("installBtn").classList.add("hidden"); });
 function isStandalone(){
-  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone===true;
+  /* __wxInstalled is set in the head script and also covers the Android shell. */
+  return window.__wxInstalled===true ||
+    window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone===true;
 }
 if(isStandalone()) $("installBtn").classList.add("hidden");
 
